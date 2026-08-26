@@ -29,20 +29,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.mk.outputs.matrix }}
-      multi: ${{ steps.mk.outputs.multi }}
     steps:
       - id: mk
         run: |
-          $n = [int]"${{ inputs.rdp_count }}"
-          if ($n -lt 1) { $n = 1 }
-          if ($n -gt 10) { $n = 10 }
-          $inc = @()
-          for ($i=1; $i -le $n; $i++){ $inc += @{ id = $i } }
-          $jsonObj = @{ include = $inc }
-          $json = $jsonObj | ConvertTo-Json -Compress
-          echo "matrix=$json" >> $env:GITHUB_OUTPUT
-          $multi = if ($n -gt 1) { '1' } else { '0' }
-          echo "multi=$multi" >> $env:GITHUB_OUTPUT
+          n=${{ inputs.rdp_count }}
+          [ $n -lt 1 ] && n=1
+          [ $n -gt 10 ] && n=10
+          inc=""
+          for ((i=1; i<=n; i++)); do inc="$inc,{\"id\":$i}"; done
+          echo "matrix={\"include\":[${inc:1}]}" >> $GITHUB_OUTPUT
 
   rdp:
     needs: setup
@@ -56,72 +51,31 @@ jobs:
       RDP_PASS: Bullet@12345
 
     steps:
-      - name: 📁 Disco D — 219GB LIVRES ✅
+      - name: 📁 Preparar Disco D
         run: |
-          if (-not (Test-Path "D:\Temp")) { New-Item -ItemType Directory -Path "D:\Temp" -Force | Out-Null }
+          if (-not (Test-Path "D:\Temp")) { New-Item -ItemType Directory -Path "D:\Temp" -Force }
           [Environment]::SetEnvironmentVariable("TEMP", "D:\Temp", "Machine")
           [Environment]::SetEnvironmentVariable("TMP", "D:\Temp", "Machine")
-          $env:TEMP = "D:\Temp"
-          $env:TMP = "D:\Temp"
-          Write-Host "✅ Disco D pronto — 219GB livres"
+          Write-Host "✅ Disco D pronto"
 
-      - name: ⚙️ 16GB RAM + 4 Núcleos ✅
+      - name: ⚙️ Configurar 16GB RAM + 4 Núcleos
         run: |
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Name "NUMBER_OF_PROCESSORS" -Value 4 -Type String
           [Environment]::SetEnvironmentVariable("PYTHON_MEM_MAX", "16384", "Machine")
           Write-Host "✅ 4 núcleos | 16GB RAM"
 
-      - name: 🖼️ COLOCAR PAPEL DE PAREDE AUTOMÁTICO ✅
-        run: |
-          # Baixa a imagem e salva
-          $wallpaperUrl = "https://i.imgur.com/9ZkL2pY.jpg"
-          $wallpaperPath = "C:\Users\Public\Pictures\Wallpaper.jpg"
-          Invoke-WebRequest -Uri $wallpaperUrl -OutFile $wallpaperPath -TimeoutSec 60
-          
-          # Aplica como papel de parede
-          Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class Wallpaper {
-  [DllImport("user32.dll", CharSet = CharSet.Auto)]
-  public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-}
-"@
-          [Wallpaper]::SystemParametersInfo(20, 0, $wallpaperPath, 3)
-          
-          Write-Host "✅ Papel de parede aplicado automaticamente!"
-
-      - name: 📌 COLOCAR ÍCONES NA ÁREA DE TRABALHO ✅
-        run: |
-          $publicDesktop = "C:\Users\Public\Desktop"
-          $shell = New-Object -ComObject WScript.Shell
-          
-          # Ícone Este Computador
-          $shortcut = $shell.CreateShortcut("$publicDesktop\Este Computador.lnk")
-          $shortcut.TargetPath = "explorer.exe"
-          $shortcut.Arguments = "shell:MyComputerFolder"
-          $shortcut.Save()
-          
-          # Ícone Lixeira
-          $shortcut = $shell.CreateShortcut("$publicDesktop\Lixeira.lnk")
-          $shortcut.TargetPath = "explorer.exe"
-          $shortcut.Arguments = "shell:RecycleBinFolder"
-          $shortcut.Save()
-          
-          Write-Host "✅ Ícones criados na área de trabalho!"
-
-      - name: 📥 Instalar Tailscale ✅
+      - name: 📥 Instalar Tailscale
         run: |
           winget install --id Tailscale.Tailscale -e --silent --accept-package-agreements --accept-source-agreements
           $tsPath = "C:\Program Files\Tailscale\tailscale.exe"
           & $tsPath logout 2>&1 | Out-Null
           & $tsPath up --authkey "${{ inputs.ts_authkey }}" --hostname "bullet${{ matrix.id }}" --accept-dns=true --accept-routes=true --timeout 300s
           $ip4 = & $tsPath ip -4 | Select-Object -First 1
-          Write-Host "✅ Tailscale conectado! IP: $ip4"
+          Write-Host "✅ Tailscale IP: $ip4"
           echo "TAILSCALE_IP=$ip4" >> $env:GITHUB_ENV
         timeout-minutes: 5
 
-      - name: 🔓 Ativar RDP ✅
+      - name: 🔓 Ativar RDP
         run: |
           $u = $env:RDP_USER; $p = $env:RDP_PASS
           $sec = ConvertTo-SecureString $p -AsPlainText -Force
@@ -134,7 +88,7 @@ public class Wallpaper {
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop" | Out-Null
           Write-Host "✅ RDP pronto | Usuário: $u | Senha: $p"
 
-      - name: 🖥️ Instalar RustDesk ✅
+      - name: 🖥️ Instalar RustDesk
         run: |
           $rdUrl = "https://github.com/rustdesk/rustdesk/releases/download/1.3.1/rustdesk-1.3.1-x86_64.msi"
           $dst = "D:\Temp\rustdesk.msi"
@@ -144,12 +98,12 @@ public class Wallpaper {
           Write-Host "✅ RustDesk instalado"
         timeout-minutes: 5
 
-      - name: ⏱️ Manter rodando ✅
+      - name: ⏱️ Manter rodando
         run: |
           $mins = [int]"${{ inputs.runtime_minutes }}"
           $end = (Get-Date).AddMinutes($mins)
           while ((Get-Date) -lt $end) {
-            Write-Host "Rodando... $((Get-Date).ToString('HH:mm')) | 4 núcleos | 16GB RAM | Disco D: 219GB | IP: $env:TAILSCALE_IP"
+            Write-Host "Rodando... $((Get-Date).ToString('HH:mm')) | 4 núcleos | 16GB RAM | Disco D | IP: $env:TAILSCALE_IP"
             Start-Sleep -Seconds 60
           }
           
