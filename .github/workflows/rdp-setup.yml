@@ -63,13 +63,52 @@ jobs:
           [Environment]::SetEnvironmentVariable("TMP", "D:\Temp", "Machine")
           $env:TEMP = "D:\Temp"
           $env:TMP = "D:\Temp"
-          Write-Host "✅ Disco D pronto — 219GB livres | Temp em D:\"
+          Write-Host "✅ Disco D pronto — 219GB livres"
 
       - name: ⚙️ 16GB RAM + 4 Núcleos ✅
         run: |
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Name "NUMBER_OF_PROCESSORS" -Value 4 -Type String
           [Environment]::SetEnvironmentVariable("PYTHON_MEM_MAX", "16384", "Machine")
           Write-Host "✅ 4 núcleos | 16GB RAM"
+
+      - name: 🖼️ COLOCAR PAPEL DE PAREDE AUTOMÁTICO ✅
+        run: |
+          # Baixa a imagem e salva
+          $wallpaperUrl = "https://i.imgur.com/9ZkL2pY.jpg"
+          $wallpaperPath = "C:\Users\Public\Pictures\Wallpaper.jpg"
+          Invoke-WebRequest -Uri $wallpaperUrl -OutFile $wallpaperPath -TimeoutSec 60
+          
+          # Aplica como papel de parede
+          Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class Wallpaper {
+  [DllImport("user32.dll", CharSet = CharSet.Auto)]
+  public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+}
+"@
+          [Wallpaper]::SystemParametersInfo(20, 0, $wallpaperPath, 3)
+          
+          Write-Host "✅ Papel de parede aplicado automaticamente!"
+
+      - name: 📌 COLOCAR ÍCONES NA ÁREA DE TRABALHO ✅
+        run: |
+          $publicDesktop = "C:\Users\Public\Desktop"
+          $shell = New-Object -ComObject WScript.Shell
+          
+          # Ícone Este Computador
+          $shortcut = $shell.CreateShortcut("$publicDesktop\Este Computador.lnk")
+          $shortcut.TargetPath = "explorer.exe"
+          $shortcut.Arguments = "shell:MyComputerFolder"
+          $shortcut.Save()
+          
+          # Ícone Lixeira
+          $shortcut = $shell.CreateShortcut("$publicDesktop\Lixeira.lnk")
+          $shortcut.TargetPath = "explorer.exe"
+          $shortcut.Arguments = "shell:RecycleBinFolder"
+          $shortcut.Save()
+          
+          Write-Host "✅ Ícones criados na área de trabalho!"
 
       - name: 📥 Instalar Tailscale ✅
         run: |
@@ -95,19 +134,14 @@ jobs:
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop" | Out-Null
           Write-Host "✅ RDP pronto | Usuário: $u | Senha: $p"
 
-      - name: 🖥️ Instalar RustDesk — DOWNLOAD DIRETO ✅
+      - name: 🖥️ Instalar RustDesk ✅
         run: |
           $rdUrl = "https://github.com/rustdesk/rustdesk/releases/download/1.3.1/rustdesk-1.3.1-x86_64.msi"
           $dst = "D:\Temp\rustdesk.msi"
           Invoke-WebRequest -Uri $rdUrl -OutFile $dst -TimeoutSec 120
           Start-Process msiexec.exe -ArgumentList "/i","`"$dst`"","/quiet","/norestart" -Wait
           Remove-Item $dst -Force
-          if (Test-Path "C:\Program Files\RustDesk\rustdesk.exe") {
-            Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
-            Write-Host "✅ RustDesk instalado e aberto"
-          } else {
-            Write-Host "⚠️ RustDesk instalado, inicie manualmente via RDP"
-          }
+          Write-Host "✅ RustDesk instalado"
         timeout-minutes: 5
 
       - name: ⏱️ Manter rodando ✅
