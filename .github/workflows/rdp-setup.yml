@@ -1,0 +1,122 @@
+name: RDP + Tailscale + RustDesk
+
+on:
+  workflow_dispatch:
+    inputs:
+      ts_tailnet:
+        description: "Tailscale tailnet (ex: seuemail@gmail.com)"
+        required: true
+      ts_authkey:
+        description: "Tailscale AUTH KEY (NÃO é API Key! — em: Admin Console → Settings → Auth Keys)"
+        required: true
+      rdp_count:
+        description: "Quantas instâncias (1-10)"
+        default: "1"
+      runtime_minutes:
+        description: "Tempo em minutos"
+        default: "355"
+
+permissions:
+  contents: read
+  actions: write
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.mk.outputs.matrix }}
+      multi: ${{ steps.mk.outputs.multi }}
+    steps:
+      - id: mk
+        run: |
+          $n = [int]"${{ inputs.rdp_count }}"
+          if ($n -lt 1) { $n = 1 }
+          if ($n -gt 10) { $n = 10 }
+          $inc = @()
+          for ($i=1; $i -le $n; $i++){ $inc += @{ id = $i } }
+          $jsonObj = @{ include = $inc }
+          $json = $jsonObj | ConvertTo-Json -Compress
+          echo "matrix=$json" >> $env:GITHUB_OUTPUT
+          $multi = if ($n -gt 1) { '1' } else { '0' }
+          echo "multi=$multi" >> $env:GITHUB_OUTPUT
+
+  rdp:
+    needs: setup
+    runs-on: windows-latest
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+      max-parallel: 10
+    timeout-minutes: 370
+    env:
+      RDP_USER: Bullettemporary
+      RDP_PASS: Bullet@12345
+
+    steps:
+      - name: 📁 Disco D — 219GB Livres ✅
+        run: |
+          if (-not (Test-Path "D:\Temp")) { New-Item -ItemType Directory -Path "D:\Temp" -Force | Out-Null }
+          if (-not (Test-Path "D:\Apps")) { New-Item -ItemType Directory -Path "D:\Apps" -Force | Out-Null }
+          [Environment]::SetEnvironmentVariable("TEMP", "D:\Temp", "Machine")
+          [Environment]::SetEnvironmentVariable("TMP", "D:\Temp", "Machine")
+          $env:TEMP = "D:\Temp"
+          $env:TMP = "D:\Temp"
+          Write-Host "✅ Disco D configurado — 219GB LIVRES | Temp/Apps em D:\"
+
+      - name: ⚙️ 16GB RAM + 4 Núcleos
+        run: |
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Name "NUMBER_OF_PROCESSORS" -Value 4 -Type String
+          [Environment]::SetEnvironmentVariable("PYTHON_MEM_MAX", "16384", "Machine")
+          Write-Host "✅ 4 núcleos | 16GB RAM configurados"
+          Write-Host "ℹ️ Memória Virtual: ajuste 16GB via RDP após conectar"
+
+      - name: 📥 Instalar Tailscale
+        run: |
+          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+          $dst = "D:\Temp\tailscale.msi"
+          Invoke-WebRequest -Uri $tsUrl -OutFile $dst
+          Start-Process msiexec.exe -ArgumentList "/i","`"$dst`"","/quiet","/norestart" -Wait
+          Remove-Item $dst -Force
+          $tsPath = "C:\Program Files\Tailscale\tailscale.exe"
+          & $tsPath logout 2>&1 | Out-Null
+          & $tsPath up --authkey "${{ inputs.ts_authkey }}" --hostname "bullet${{ matrix.id }}" --accept-dns=true --accept-routes=true --timeout 300s
+          $ip4 = & $tsPath ip -4 | Select-Object -First 1
+          Write-Host "✅ Tailscale conectado! IP: $ip4"
+          echo "TAILSCALE_IP=$ip4" >> $env:GITHUB_ENV
+
+      - name: 🔓 Ativar RDP
+        run: |
+          $u = $env:RDP_USER
+          $p = $env:RDP_PASS
+          $sec = ConvertTo-SecureString $p -AsPlainText -Force
+          if (-not (Get-LocalUser -Name $u -EA SilentlyContinue)) {
+            New-LocalUser -Name $u -Password $sec -AccountNeverExpires
+            Add-LocalGroupMember -Group "Administrators" -Member $u
+            Add-LocalGroupMember -Group "Remote Desktop Users" -Member $u
+          }
+          Set-ItemProperty "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name fDenyTSConnections -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop" | Out-Null
+          Write-Host "✅ RDP pronto | Usuário: $u | Senha: $p"
+
+      - name: 🖥️ Instalar RustDesk
+        run: |
+          $rdUrl = "https://github.com/rustdesk/rustdesk/releases/download/1.3.1/rustdesk-1.3.1-x86_64.msi"
+          $dst = "D:\Temp\rustdesk.msi"
+          Invoke-WebRequest -Uri $rdUrl -OutFile $dst
+          Start-Process msiexec.exe -ArgumentList "/i","`"$dst`"","/quiet","/norestart" -Wait
+          Remove-Item $dst -Force
+          Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
+          Write-Host "✅ RustDesk pronto"
+
+      - name: ⏱️ Manter rodando
+        run: |
+          $mins = [int]"${{ inputs.runtime_minutes }}"
+          $end = (Get-Date).AddMinutes($mins)
+          while ((Get-Date) -lt $end) {
+            Write-Host "Rodando... $((Get-Date).ToString('HH:mm')) | 4 núcleos | 16GB RAM | Disco D: 219GB LIVRES | IP: $env:TAILSCALE_IP"
+            Start-Sleep -Seconds 60
+          }
+          
