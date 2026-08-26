@@ -33,10 +33,12 @@ jobs:
       - id: mk
         run: |
           n=${{ inputs.rdp_count }}
-          [ $n -lt 1 ] && n=1
-          [ $n -gt 10 ] && n=10
+          if [ "$n" -lt 1 ]; then n=1; fi
+          if [ "$n" -gt 10 ]; then n=10; fi
           inc=""
-          for ((i=1; i<=n; i++)); do inc="$inc,{\"id\":$i}"; done
+          for ((i=1; i<=n; i++)); do
+            inc="$inc,{\"id\":$i}"
+          done
           echo "matrix={\"include\":[${inc:1}]}" >> $GITHUB_OUTPUT
 
   rdp:
