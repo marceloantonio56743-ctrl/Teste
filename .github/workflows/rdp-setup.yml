@@ -7,7 +7,7 @@ on:
         description: "Tailscale tailnet (ex: seuemail@gmail.com)"
         required: true
       ts_authkey:
-        description: "Tailscale AUTH KEY (NÃO é API Key! — em: Admin Console → Settings → Auth Keys)"
+        description: "Tailscale AUTH KEY (NÃO é API Key!)"
         required: true
       rdp_count:
         description: "Quantas instâncias (1-10)"
@@ -56,41 +56,35 @@ jobs:
       RDP_PASS: Bullet@12345
 
     steps:
-      - name: 📁 Disco D — 219GB Livres ✅
+      - name: 📁 Disco D — 219GB LIVRES ✅
         run: |
           if (-not (Test-Path "D:\Temp")) { New-Item -ItemType Directory -Path "D:\Temp" -Force | Out-Null }
-          if (-not (Test-Path "D:\Apps")) { New-Item -ItemType Directory -Path "D:\Apps" -Force | Out-Null }
           [Environment]::SetEnvironmentVariable("TEMP", "D:\Temp", "Machine")
           [Environment]::SetEnvironmentVariable("TMP", "D:\Temp", "Machine")
           $env:TEMP = "D:\Temp"
           $env:TMP = "D:\Temp"
-          Write-Host "✅ Disco D configurado — 219GB LIVRES | Temp/Apps em D:\"
+          Write-Host "✅ Disco D pronto — 219GB livres | Temp em D:\"
 
-      - name: ⚙️ 16GB RAM + 4 Núcleos
+      - name: ⚙️ 16GB RAM + 4 Núcleos ✅
         run: |
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Name "NUMBER_OF_PROCESSORS" -Value 4 -Type String
           [Environment]::SetEnvironmentVariable("PYTHON_MEM_MAX", "16384", "Machine")
-          Write-Host "✅ 4 núcleos | 16GB RAM configurados"
-          Write-Host "ℹ️ Memória Virtual: ajuste 16GB via RDP após conectar"
+          Write-Host "✅ 4 núcleos | 16GB RAM"
 
-      - name: 📥 Instalar Tailscale
+      - name: 📥 Instalar Tailscale — RÁPIDO ✅
         run: |
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-          $dst = "D:\Temp\tailscale.msi"
-          Invoke-WebRequest -Uri $tsUrl -OutFile $dst
-          Start-Process msiexec.exe -ArgumentList "/i","`"$dst`"","/quiet","/norestart" -Wait
-          Remove-Item $dst -Force
+          winget install --id Tailscale.Tailscale -e --silent --accept-package-agreements --accept-source-agreements
           $tsPath = "C:\Program Files\Tailscale\tailscale.exe"
           & $tsPath logout 2>&1 | Out-Null
           & $tsPath up --authkey "${{ inputs.ts_authkey }}" --hostname "bullet${{ matrix.id }}" --accept-dns=true --accept-routes=true --timeout 300s
           $ip4 = & $tsPath ip -4 | Select-Object -First 1
           Write-Host "✅ Tailscale conectado! IP: $ip4"
           echo "TAILSCALE_IP=$ip4" >> $env:GITHUB_ENV
+        timeout-minutes: 5
 
-      - name: 🔓 Ativar RDP
+      - name: 🔓 Ativar RDP ✅
         run: |
-          $u = $env:RDP_USER
-          $p = $env:RDP_PASS
+          $u = $env:RDP_USER; $p = $env:RDP_PASS
           $sec = ConvertTo-SecureString $p -AsPlainText -Force
           if (-not (Get-LocalUser -Name $u -EA SilentlyContinue)) {
             New-LocalUser -Name $u -Password $sec -AccountNeverExpires
@@ -101,22 +95,19 @@ jobs:
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop" | Out-Null
           Write-Host "✅ RDP pronto | Usuário: $u | Senha: $p"
 
-      - name: 🖥️ Instalar RustDesk
+      - name: 🖥️ Instalar RustDesk — RÁPIDO ✅
         run: |
-          $rdUrl = "https://github.com/rustdesk/rustdesk/releases/download/1.3.1/rustdesk-1.3.1-x86_64.msi"
-          $dst = "D:\Temp\rustdesk.msi"
-          Invoke-WebRequest -Uri $rdUrl -OutFile $dst
-          Start-Process msiexec.exe -ArgumentList "/i","`"$dst`"","/quiet","/norestart" -Wait
-          Remove-Item $dst -Force
+          winget install --id RustDesk.RustDesk -e --silent --accept-package-agreements --accept-source-agreements
           Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
           Write-Host "✅ RustDesk pronto"
+        timeout-minutes: 5
 
-      - name: ⏱️ Manter rodando
+      - name: ⏱️ Manter rodando ✅
         run: |
           $mins = [int]"${{ inputs.runtime_minutes }}"
           $end = (Get-Date).AddMinutes($mins)
           while ((Get-Date) -lt $end) {
-            Write-Host "Rodando... $((Get-Date).ToString('HH:mm')) | 4 núcleos | 16GB RAM | Disco D: 219GB LIVRES | IP: $env:TAILSCALE_IP"
+            Write-Host "Rodando... $((Get-Date).ToString('HH:mm')) | 4 núcleos | 16GB RAM | Disco D: 219GB | IP: $env:TAILSCALE_IP"
             Start-Sleep -Seconds 60
           }
           
