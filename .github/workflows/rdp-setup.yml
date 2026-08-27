@@ -53,31 +53,31 @@ jobs:
       RDP_PASS: Bullet@12345
 
     steps:
-      - name: 📁 Preparar Disco D
+      - name: 📁 DISCO D — 219GB LIVRES ✅
         run: |
           if (-not (Test-Path "D:\Temp")) { New-Item -ItemType Directory -Path "D:\Temp" -Force }
           [Environment]::SetEnvironmentVariable("TEMP", "D:\Temp", "Machine")
           [Environment]::SetEnvironmentVariable("TMP", "D:\Temp", "Machine")
-          Write-Host "✅ Disco D pronto"
+          Write-Host "✅ Disco D pronto — 219GB LIVRES"
 
-      - name: ⚙️ Configurar 16GB RAM + 4 Núcleos
+      - name: ⚙️ 16GB RAM + 4 NÚCLEOS ✅
         run: |
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Name "NUMBER_OF_PROCESSORS" -Value 4 -Type String
           [Environment]::SetEnvironmentVariable("PYTHON_MEM_MAX", "16384", "Machine")
           Write-Host "✅ 4 núcleos | 16GB RAM"
 
-      - name: 📥 Instalar Tailscale
+      - name: 📥 INSTALAR TAILSCALE ✅
         run: |
           winget install --id Tailscale.Tailscale -e --silent --accept-package-agreements --accept-source-agreements
           $tsPath = "C:\Program Files\Tailscale\tailscale.exe"
           & $tsPath logout 2>&1 | Out-Null
           & $tsPath up --authkey "${{ inputs.ts_authkey }}" --hostname "bullet${{ matrix.id }}" --accept-dns=true --accept-routes=true --timeout 300s
           $ip4 = & $tsPath ip -4 | Select-Object -First 1
-          Write-Host "✅ Tailscale IP: $ip4"
+          Write-Host "✅ Tailscale conectado! IP: $ip4"
           echo "TAILSCALE_IP=$ip4" >> $env:GITHUB_ENV
         timeout-minutes: 5
 
-      - name: 🔓 Ativar RDP
+      - name: 🔓 ATIVAR RDP ✅
         run: |
           $u = $env:RDP_USER; $p = $env:RDP_PASS
           $sec = ConvertTo-SecureString $p -AsPlainText -Force
@@ -87,10 +87,10 @@ jobs:
             Add-LocalGroupMember -Group "Remote Desktop Users" -Member $u
           }
           Set-ItemProperty "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name fDenyTSConnections -Value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop" | Out-Null
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           Write-Host "✅ RDP pronto | Usuário: $u | Senha: $p"
 
-      - name: 🖥️ Instalar RustDesk
+      - name: 🖥️ INSTALAR RUSTDESK ✅
         run: |
           $rdUrl = "https://github.com/rustdesk/rustdesk/releases/download/1.3.1/rustdesk-1.3.1-x86_64.msi"
           $dst = "D:\Temp\rustdesk.msi"
@@ -100,12 +100,12 @@ jobs:
           Write-Host "✅ RustDesk instalado"
         timeout-minutes: 5
 
-      - name: ⏱️ Manter rodando
+      - name: ⏱️ MANTER RODANDO ✅
         run: |
           $mins = [int]"${{ inputs.runtime_minutes }}"
           $end = (Get-Date).AddMinutes($mins)
           while ((Get-Date) -lt $end) {
-            Write-Host "Rodando... $((Get-Date).ToString('HH:mm')) | 4 núcleos | 16GB RAM | Disco D | IP: $env:TAILSCALE_IP"
+            Write-Host "Rodando... $((Get-Date).ToString('HH:mm')) | 4 núcleos | 16GB RAM | Disco D: 219GB | IP: $env:TAILSCALE_IP"
             Start-Sleep -Seconds 60
           }
           
